@@ -1,77 +1,98 @@
-# Apurador de ICMS ST — Entrada
+# Apurador de ICMS ST
 
-Web app para apurar ICMS ST / antecipação / DIFAL na entrada, a partir do XML de NF-e.
-Voltado a escritórios de contabilidade (clientes Simples Nacional que compram de outros
-estados para revender).
+Apuração de **ICMS Substituição Tributária, antecipação e DIFAL na entrada** a partir do
+XML da NF-e. Pensado para escritórios de contabilidade com clientes do **Simples Nacional**
+que compram de outros estados para revender.
 
-## Stack
+**🔗 Demo:** https://duperez.github.io/apurador-icms/
 
-- **Next.js 16 + React 19 + TypeScript** (App Router)
-- **Tailwind** para estilo
-- **fast-xml-parser** (lê XML no navegador e no Node)
-- **Vitest** para testar o motor
+> ⚠️ **Versão demonstrativa.** Os MVAs e alíquotas embutidos são **valores de exemplo** e
+> ainda **não foram validados**. Não use os números para recolhimento sem conferir com sua
+> fonte fiscal (ex.: ECONET).
+
+---
+
+## O que faz
+
+Você arrasta os XMLs das notas de entrada e o sistema, para cada item:
+
+- 📥 **Lê e classifica** cada item pelo NCM (não depende do CEST vir preenchido na nota).
+- 🧮 **Apura** o tratamento correto e o valor a recolher:
+  - ST já retida na origem → nada a recolher (não cobra em dobro)
+  - ST antecipada → cálculo com MVA ajustada
+  - Antecipação parcial → diferença de alíquota
+  - DIFAL → para itens de uso/consumo ou ativo
+- 🔎 **Confere a ST do fornecedor** — recalcula a ST destacada e aponta erro de cálculo
+  ou parâmetro divergente.
+- 📋 **Lista pendências de NCM** — o que falta classificar vira uma lista de trabalho.
+- 🧾 **Memória de cálculo** — cada linha abre e mostra a conta passo a passo (auditável).
+- 👥 **Resumo por cliente/competência** — consolida para fechar o mês (base da DeSTDA).
+- 🔒 **Roda no navegador** — os XMLs e os cálculos não saem da sua máquina.
+
+## Como funciona
+
+A decisão por item segue esta árvore:
+
+```
+item com ST já retida na origem?  → nada a recolher
+senão, qual a finalidade do item?
+   ├─ consumo / ativo  → DIFAL (diferença de alíquota)
+   └─ revenda          → é ST no destino?
+                          ├─ sim → ST antecipada (MVA ajustada)
+                          └─ não → antecipação parcial
+```
+
+Você mantém duas tabelas simples (editáveis na própria interface):
+
+- **Regras de ST** — por NCM/UF de destino: é ST? qual a MVA e a alíquota interna.
+- **Finalidades** — por cliente + produto: revenda, uso/consumo ou ativo.
+
+> A MVA informada é a **original** (do protocolo/convênio); o sistema calcula a MVA
+> ajustada automaticamente pela alíquota interestadual de cada nota.
+
+## Tecnologias
+
+- [Next.js](https://nextjs.org) 16 + React 19 + TypeScript (App Router, export estático)
+- Tailwind CSS
+- [fast-xml-parser](https://github.com/NaturalIntelligence/fast-xml-parser) — leitura do XML
+- [Vitest](https://vitest.dev) — testes da lógica fiscal
+
+## Rodando localmente
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
+Outros comandos:
+
+```bash
+npm test         # testes da lógica de cálculo
+npm run build    # build estático (gera out/)
+```
 
 ## Estrutura
 
 ```
 src/
-  lib/icms/           ← o "motor": domínio puro, sem React/UI
-    types.ts          tipos do domínio
-    parser.ts         XML da NF-e → itens (camada determinística)
-    engine.ts         apuração: escolhe o galho e calcula  ← coração do produto
-    defaults.ts       seeds dos dois caches (valores de EXEMPLO)
-    format.ts         formatação/CSV (usado só na UI)
-    engine.test.ts    testes com notas reais — travam a conta em R$ 451,06
-    __fixtures__/     XMLs reais usados nos testes
-  lib/useLocalStorage.ts   persistência provisória dos caches
-  app/page.tsx        a interface (upload, tabela, abas, editores)
+  lib/icms/        lógica fiscal pura e testável (parser, motor de cálculo, conferência…)
+  lib/             utilitários (persistência local)
+  app/page.tsx     interface (upload, abas, tabelas)
 ```
 
-A regra de ouro: **toda a lógica fiscal mora em `lib/icms/` e é testável sem abrir o navegador.**
-UI, banco e login são plugados em volta.
+A lógica fiscal fica isolada em `src/lib/icms/` — testável sem abrir o navegador.
 
-## Rodar
+## Privacidade
 
-```bash
-npm run dev      # http://localhost:3000
-npm test         # roda os testes do motor
-npm run build    # build de produção
-```
+Nenhum dado sai do seu computador: a leitura dos XMLs e os cálculos acontecem inteiramente
+no navegador, e suas tabelas ficam salvas localmente.
 
-## Estado atual (features prontas)
+## Status
 
-- **Apuração**: lê XML, tria por NCM, escolhe o galho (ST já recolhida / ST antecipada /
-  antecipação parcial / DIFAL) e calcula. Validado com notas reais (total R$ 451,06).
-- **Conferência da ST do fornecedor**: recalcula a ST destacada e acusa erro de cálculo
-  ou parâmetro divergente. Autônomo.
-- **Fila de pendências de NCM**: agrupa itens sem regra; botão "Cadastrar regra" fecha o ciclo.
-- **Memória de cálculo por nota**: cada linha expande e mostra a conta passo a passo.
-- **Por cliente / DeSTDA**: consolida por cliente e competência (base dos valores da DeSTDA).
-- Caches editáveis na UI e salvos no **localStorage**.
+Projeto em desenvolvimento. As funcionalidades acima estão implementadas e cobertas por
+testes; a calibração dos parâmetros fiscais e integrações (banco, geração de guia e DeSTDA)
+estão no roadmap.
 
-## Próximos passos
+---
 
-### 1. Calibrar parâmetros (antes de confiar nos valores)
-MVAs e alíquotas em `defaults.ts` são **EXEMPLO**. Validar com a ECONET / uma apuração real.
-
-### 2. Supabase (banco + login) — depende de você criar a conta
-Groundwork pronto: `supabase/schema.sql` (tabelas + RLS por escritório) e `.env.local.example`.
-Para ativar:
-1. Crie um projeto em https://supabase.com
-2. SQL Editor → cole `supabase/schema.sql` → rode
-3. `cp .env.local.example .env.local` e preencha URL + anon key (Settings > API)
-4. Avise — aí eu instalo `@supabase/supabase-js`, troco o `useLocalStorage` por
-   leitura/escrita no banco e ligo o login.
-
-### 3. DeSTDA — arquivo de importação
-A aba "Por cliente / DeSTDA" já entrega os **valores consolidados**. Falta gerar o **arquivo
-no layout oficial do SEDIF-SN** (registros documentados no manual). Precisa do layout em mãos
-para implementar sem chutar o formato.
-
-### 4. Integrações (exigem recursos externos — não dá pra fazer "no escuro")
-- **Distribuição DF-e** (baixar XMLs automático): webservice da SEFAZ + **certificado A1** do cliente.
-- **Emissão de GNRE**: webservice da GNRE. (O *valor* já é calculado; falta a emissão.)
-
-### Privacidade dos fixtures
-Os XMLs em `__fixtures__/` têm dados reais de cliente. Anonimizar (nome/CNPJ) antes de tornar
-o repositório público.
+Feito para simplificar uma dor real de quem faz apuração de ICMS ST na mão.
