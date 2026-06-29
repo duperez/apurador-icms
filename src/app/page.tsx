@@ -6,6 +6,8 @@ import { apurar, totalARecolher } from "@/lib/icms/engine";
 import { conferir } from "@/lib/icms/conferencia";
 import { pendenciasNCM } from "@/lib/icms/pendencias";
 import { resumoPorCliente, resumoToCsv } from "@/lib/icms/resumo";
+import { validar } from "@/lib/icms/validacoes";
+import { exportarCadastros, importarCadastros, importarRegrasCsv, mesclarRegras } from "@/lib/icms/io";
 import { BADGE, BADGE_CONF, money, numBR, toCsv } from "@/lib/icms/format";
 import { FINALIDADES_PADRAO, REGRAS_PADRAO } from "@/lib/icms/defaults";
 import { useLocalStorage } from "@/lib/useLocalStorage";
@@ -16,6 +18,7 @@ type Aba =
   | "apuracao"
   | "conferencia"
   | "pendencias"
+  | "alertas"
   | "cliente"
   | "regras"
   | "finalidades"
@@ -28,10 +31,28 @@ export default function Home() {
   const [fins, setFins] = useLocalStorage<RegraFinalidade[]>("finalidades", FINALIDADES_PADRAO);
   const inputRef = useRef<HTMLInputElement>(null);
   const [aberto, setAberto] = useState<number | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtroGalho, setFiltroGalho] = useState("");
 
   const itens = useMemo(() => arquivos.flatMap((a) => a.itens), [arquivos]);
   const aps = useMemo(() => apurar(itens, regras, fins), [itens, regras, fins]);
   const total = totalARecolher(aps);
+
+  // #6 — filtro/busca na tabela de apuração
+  const apsFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return aps.filter(
+      (a) =>
+        (filtroGalho === "" || a.galho === filtroGalho) &&
+        (q === "" ||
+          a.ncm.includes(q) ||
+          a.produto.toLowerCase().includes(q) ||
+          a.nNF.includes(q))
+    );
+  }, [aps, busca, filtroGalho]);
+
+  // #2 — validações/alertas do XML
+  const alertas = useMemo(() => validar(itens), [itens]);
 
   const porGalho = useMemo(() => {
     const m: Record<string, number> = {};
@@ -87,6 +108,47 @@ export default function Home() {
     a.click();
   }
 
+  // #6 — muda a finalidade direto na linha da apuração (salva no cache)
+  function setFinalidadeInline(cnpj: string, ncm: string, fin: Finalidade) {
+    setFins((prev) => {
+      const i = prev.findIndex((f) => f.cnpj === cnpj && f.ncm === ncm);
+      if (i >= 0) {
+        const c = [...prev];
+        c[i] = { ...c[i], finalidade: fin };
+        return c;
+      }
+      return [...prev, { cnpj, ncm, finalidade: fin }];
+    });
+  }
+
+  // #1 — exportar/importar cadastros (backup); #3 — importar regras de CSV
+  function exportarBackup() {
+    const blob = new Blob([exportarCadastros(regras, fins)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cadastros-apurador.json";
+    a.click();
+  }
+  async function importarBackup(file?: File) {
+    if (!file) return;
+    try {
+      const { regras: r, finalidades: f } = importarCadastros(await file.text());
+      setRegras(r);
+      setFins(f);
+    } catch {
+      alert("Arquivo de backup inválido.");
+    }
+  }
+  async function importarCsv(file?: File) {
+    if (!file) return;
+    const novas = importarRegrasCsv(await file.text());
+    if (!novas.length) {
+      alert("Nenhuma regra lida. Confira o cabeçalho: ncm, uf, eh_st, mva, aliq_interna, fcp.");
+      return;
+    }
+    setRegras(mesclarRegras(regras, novas));
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
       <header className="bg-gradient-to-br from-teal-800 to-teal-600 px-7 py-6 text-white">
@@ -102,6 +164,7 @@ export default function Home() {
             ["apuracao", "Apuração"],
             ["conferencia", `Conferência ST${confs.length ? ` · ${confs.length}` : ""}${confProblemas ? " ⚠" : ""}`],
             ["pendencias", `Pendências${pend.length ? ` · ${pend.length} ⚠` : ""}`],
+            ["alertas", `Alertas${alertas.length ? ` · ${alertas.length} ⚠` : ""}`],
             ["cliente", "Por cliente / DeSTDA"],
             ["regras", `Regras de ST · ${regras.length}`],
             ["finalidades", `Finalidades · ${fins.length}`],
@@ -205,6 +268,32 @@ export default function Home() {
                   Confira sempre a regra vigente na data da nota antes de recolher.
                 </div>
 
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <input
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
+                    placeholder="Buscar por NCM, produto ou NF…"
+                    value={busca}
+                    onChange={(e) => { setBusca(e.target.value); setAberto(null); }}
+                  />
+                  <select
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
+                    value={filtroGalho}
+                    onChange={(e) => { setFiltroGalho(e.target.value); setAberto(null); }}
+                  >
+                    <option value="">Todos os tratamentos</option>
+                    <option value="ST_ANTECIPADA">ST antecipada</option>
+                    <option value="ANTECIPACAO_PARCIAL">Antecip. parcial</option>
+                    <option value="DIFAL">DIFAL</option>
+                    <option value="ST_JA_RECOLHIDA">ST já recolhida</option>
+                    <option value="FALTA_REGRA">Falta regra</option>
+                  </select>
+                  {(busca || filtroGalho) && (
+                    <span className="self-center text-xs text-slate-500">
+                      {apsFiltrados.length} de {aps.length} itens
+                    </span>
+                  )}
+                </div>
+
                 <div className="overflow-x-auto rounded-xl bg-white shadow">
                   <table className="w-full text-sm">
                     <thead>
@@ -218,7 +307,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {aps.map((r, i) => {
+                      {apsFiltrados.map((r, i) => {
                         const b = BADGE[r.galho];
                         const open = aberto === i;
                         return (
@@ -234,7 +323,25 @@ export default function Home() {
                               <td className="td max-w-[220px] truncate" title={r.produto}>
                                 {r.produto}
                               </td>
-                              <td className="td">{r.galho === "ST_JA_RECOLHIDA" ? "—" : r.finalidade}</td>
+                              <td className="td">
+                                {r.galho === "ST_JA_RECOLHIDA" ? (
+                                  "—"
+                                ) : (
+                                  <select
+                                    className="inp"
+                                    value={r.finalidade || "revenda"}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      setFinalidadeInline(r.destCnpj, r.ncm, e.target.value as Finalidade);
+                                    }}
+                                  >
+                                    <option value="revenda">revenda</option>
+                                    <option value="consumo">consumo</option>
+                                    <option value="ativo">ativo</option>
+                                  </select>
+                                )}
+                              </td>
                               <td className="td">
                                 <span
                                   title={r.detalhe}
@@ -427,6 +534,42 @@ export default function Home() {
           </section>
         )}
 
+        {/* ---------------- ALERTAS ---------------- */}
+        {aba === "alertas" && (
+          <section>
+            <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+              Verificações automáticas no XML — inconsistências do fornecedor (mesmo NCM com CEST
+              em uns itens e sem em outros), dados faltando, ST destacada com CST estranho. Só lê o
+              arquivo; não depende de nada externo.
+            </div>
+            {alertas.length === 0 ? (
+              <div className="rounded-xl bg-white p-10 text-center text-slate-500 shadow">
+                {itens.length === 0
+                  ? "Suba notas na aba Apuração para rodar as validações."
+                  : "Nenhum alerta 🎉 — nada de inconsistente nas notas carregadas."}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {alertas.map((al, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      al.nivel === "erro"
+                        ? "border-red-200 bg-red-50 text-red-700"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    <div className="font-semibold">
+                      {al.nivel === "erro" ? "⛔" : "⚠️"} {al.titulo}
+                    </div>
+                    <div className="mt-0.5 text-xs opacity-90">{al.detalhe}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* ---------------- POR CLIENTE / DeSTDA ---------------- */}
         {aba === "cliente" && (
           <section>
@@ -484,7 +627,22 @@ export default function Home() {
           </section>
         )}
 
-        {aba === "regras" && <EditorRegras regras={regras} setRegras={setRegras} />}
+        {aba === "regras" && (
+          <section>
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button onClick={exportarBackup} className="btn-ghost">Exportar cadastros</button>
+              <label className="btn-ghost cursor-pointer">
+                Importar cadastros (JSON)
+                <input type="file" accept="application/json" hidden onChange={(e) => importarBackup(e.target.files?.[0])} />
+              </label>
+              <label className="btn-ghost cursor-pointer">
+                Importar regras (CSV)
+                <input type="file" accept=".csv,text/csv" hidden onChange={(e) => importarCsv(e.target.files?.[0])} />
+              </label>
+            </div>
+            <EditorRegras regras={regras} setRegras={setRegras} />
+          </section>
+        )}
         {aba === "finalidades" && <EditorFinalidades fins={fins} setFins={setFins} />}
 
         {aba === "ajuda" && (
@@ -555,7 +713,7 @@ function EditorRegras({
           <thead>
             <tr className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
               <th className="th">NCM</th><th className="th">UF dest.</th><th className="th">É ST?</th>
-              <th className="th">MVA %</th><th className="th">Alíq. interna %</th><th className="th"></th>
+              <th className="th">MVA %</th><th className="th">Alíq. interna %</th><th className="th">FCP %</th><th className="th"></th>
             </tr>
           </thead>
           <tbody>
@@ -570,6 +728,7 @@ function EditorRegras({
                 </td>
                 <td className="td"><input type="number" step="0.01" className="inp w-20" placeholder="ex.: 45" value={r.mva || ""} onChange={(e) => set(i, { mva: +e.target.value })} /></td>
                 <td className="td"><input type="number" step="0.01" className="inp w-24" placeholder="ex.: 19.5" value={r.aliqInterna || ""} onChange={(e) => set(i, { aliqInterna: +e.target.value })} /></td>
+                <td className="td"><input type="number" step="0.01" className="inp w-16" placeholder="ex.: 2" value={r.fcpSt || ""} onChange={(e) => set(i, { fcpSt: +e.target.value })} /></td>
                 <td className="td">
                   <button onClick={() => setRegras(regras.filter((_, j) => j !== i))} className="btn-ghost text-xs">remover</button>
                 </td>

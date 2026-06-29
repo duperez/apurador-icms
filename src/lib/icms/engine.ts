@@ -95,13 +95,19 @@ export function apurarItem(
       out.memoria = [passoBase, { rotulo: "Pendente", detalhe: out.detalhe, valor: 0 }];
       return out;
     }
+    const difal = round2(Math.max((base * (regra.aliqInterna - aliqInter)) / 100, 0));
+    const fcp = regra.fcpSt ?? 0;
+    const fcpValor = fcp > 0 ? round2((base * fcp) / 100) : 0;
     out.galho = "DIFAL";
-    out.valor = round2(Math.max((base * (regra.aliqInterna - aliqInter)) / 100, 0));
-    out.detalhe = `DIFAL ${regra.aliqInterna}–${aliqInter}%`;
+    out.valor = round2(difal + fcpValor);
+    out.detalhe = `DIFAL ${regra.aliqInterna}–${aliqInter}%${fcp > 0 ? ` + FCP ${fcp}%` : ""}`;
     out.memoria = [
       passoBase,
       { rotulo: "Alíquota interna do destino", valor: regra.aliqInterna, unidade: "percent" },
       { rotulo: "Alíquota interestadual (nota)", valor: aliqInter, unidade: "percent" },
+      ...(fcp > 0
+        ? [{ rotulo: `FCP (${fcp}%)`, detalhe: `base × ${fcp}%`, valor: fcpValor }]
+        : []),
       {
         rotulo: "DIFAL a recolher",
         detalhe: `base × (${regra.aliqInterna}% − ${aliqInter}%)`,
@@ -117,13 +123,16 @@ export function apurarItem(
     out.memoria = [passoBase, { rotulo: "Pendente", detalhe: out.detalhe, valor: 0 }];
     return out;
   }
+  const fcp = regra.fcpSt ?? 0;
   if (regra.ehSt) {
     const mvaAj = mvaAjustada(regra.mva, aliqInter, regra.aliqInterna);
     const baseSt = base * (1 + mvaAj / 100);
     const icmsInterno = (baseSt * regra.aliqInterna) / 100;
+    const st = round2(Math.max(icmsInterno - it.vICMS, 0));
+    const fcpValor = fcp > 0 ? round2((baseSt * fcp) / 100) : 0;
     out.galho = "ST_ANTECIPADA";
-    out.valor = round2(Math.max(icmsInterno - it.vICMS, 0));
-    out.detalhe = `MVA ${regra.mva}% (aj ${mvaAj.toFixed(1)}%) − crédito ${it.vICMS.toFixed(2)}`;
+    out.valor = round2(st + fcpValor);
+    out.detalhe = `MVA ${regra.mva}% (aj ${mvaAj.toFixed(1)}%) − crédito ${it.vICMS.toFixed(2)}${fcp > 0 ? ` + FCP ${fcp}%` : ""}`;
     out.memoria = [
       passoBase,
       { rotulo: "MVA original", valor: regra.mva, unidade: "percent" },
@@ -140,16 +149,24 @@ export function apurarItem(
         valor: round2(icmsInterno),
       },
       { rotulo: "(−) Crédito da operação própria", detalhe: "ICMS destacado na nota", valor: -it.vICMS },
+      ...(fcp > 0
+        ? [{ rotulo: `FCP-ST (${fcp}%)`, detalhe: `base ST × ${fcp}%`, valor: fcpValor }]
+        : []),
       { rotulo: "ST antecipada a recolher", valor: out.valor },
     ];
   } else {
+    const antecip = round2(Math.max((base * (regra.aliqInterna - aliqInter)) / 100, 0));
+    const fcpValor = fcp > 0 ? round2((base * fcp) / 100) : 0;
     out.galho = "ANTECIPACAO_PARCIAL";
-    out.valor = round2(Math.max((base * (regra.aliqInterna - aliqInter)) / 100, 0));
-    out.detalhe = `antecip. parcial ${regra.aliqInterna}–${aliqInter}%`;
+    out.valor = round2(antecip + fcpValor);
+    out.detalhe = `antecip. parcial ${regra.aliqInterna}–${aliqInter}%${fcp > 0 ? ` + FCP ${fcp}%` : ""}`;
     out.memoria = [
       passoBase,
       { rotulo: "Alíquota interna do destino", valor: regra.aliqInterna, unidade: "percent" },
       { rotulo: "Alíquota interestadual (nota)", valor: aliqInter, unidade: "percent" },
+      ...(fcp > 0
+        ? [{ rotulo: `FCP (${fcp}%)`, detalhe: `base × ${fcp}%`, valor: fcpValor }]
+        : []),
       {
         rotulo: "Antecipação parcial a recolher",
         detalhe: `base × (${regra.aliqInterna}% − ${aliqInter}%)`,

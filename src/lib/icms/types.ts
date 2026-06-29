@@ -39,6 +39,8 @@ export interface RegraST {
   ehSt: boolean;
   mva: number;
   aliqInterna: number;
+  /** Fundo de Combate à Pobreza sobre a ST (%). Opcional; ausente = 0. */
+  fcpSt?: number;
 }
 
 export type Finalidade = "revenda" | "consumo" | "ativo";
