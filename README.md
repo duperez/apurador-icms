@@ -6,9 +6,10 @@ que compram de outros estados para revender.
 
 **🔗 Demo:** https://duperez.github.io/apurador-icms/
 
-> ⚠️ **Versão demonstrativa.** Os MVAs e alíquotas embutidos são **valores de exemplo** e
-> ainda **não foram validados**. Não use os números para recolhimento sem conferir com sua
-> fonte fiscal (ex.: ECONET).
+> ⚠️ **O app não vem com nenhum valor fiscal preenchido.** Você cadastra a MVA, a alíquota
+> interna e se o item é ST — por NCM, a partir da sua fonte oficial (ex.: ECONET). Os campos
+> mostram apenas dicas (ex.: `45`), nunca números salvos. Confira sempre a regra vigente na
+> data da nota antes de recolher.
 
 ---
 

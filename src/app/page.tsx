@@ -62,7 +62,8 @@ export default function Home() {
   // cadastra uma regra em branco para o NCM pendente e leva para a aba Regras
   function cadastrarRegra(ncm: string, uf: string) {
     if (!regras.some((r) => r.ncm === ncm && r.uf === uf)) {
-      setRegras([{ ncm, uf, ehSt: false, mva: 0, aliqInterna: 19.5 }, ...regras]);
+      // só NCM e UF vêm pré-preenchidos (dados reais da nota); MVA/alíquota em branco
+      setRegras([{ ncm, uf, ehSt: false, mva: 0, aliqInterna: 0 }, ...regras]);
     }
     setAba("regras");
   }
@@ -199,8 +200,9 @@ export default function Home() {
                 </div>
 
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Os valores são <b>estimativa</b>. Os MVAs e alíquotas vêm da aba{" "}
-                  <b>Regras de ST</b> — confira-os com sua fonte antes de gerar guia.
+                  Os valores usam as regras que <b>você cadastrou</b> na aba <b>Regras de ST</b>
+                  (MVA e alíquota da sua fonte oficial). Itens sem regra ficam em <b>Pendências</b>.
+                  Confira sempre a regra vigente na data da nota antes de recolher.
                 </div>
 
                 <div className="overflow-x-auto rounded-xl bg-white shadow">
@@ -541,7 +543,7 @@ function EditorRegras({
         <strong>Regras cadastradas</strong>
         <button
           onClick={() =>
-            setRegras([...regras, { ncm: "", uf: "PR", ehSt: false, mva: 0, aliqInterna: 19.5 }])
+            setRegras([...regras, { ncm: "", uf: "", ehSt: false, mva: 0, aliqInterna: 0 }])
           }
           className="btn"
         >
@@ -559,15 +561,15 @@ function EditorRegras({
           <tbody>
             {regras.map((r, i) => (
               <tr key={i} className="border-t border-slate-100">
-                <td className="td"><input className="inp w-24" value={r.ncm} onChange={(e) => set(i, { ncm: e.target.value })} /></td>
-                <td className="td"><input className="inp w-16" value={r.uf} onChange={(e) => set(i, { uf: e.target.value.toUpperCase() })} /></td>
+                <td className="td"><input className="inp w-24" placeholder="ex.: 40115000" value={r.ncm} onChange={(e) => set(i, { ncm: e.target.value })} /></td>
+                <td className="td"><input className="inp w-16" placeholder="UF" value={r.uf} onChange={(e) => set(i, { uf: e.target.value.toUpperCase() })} /></td>
                 <td className="td">
                   <select className="inp" value={String(r.ehSt)} onChange={(e) => set(i, { ehSt: e.target.value === "true" })}>
                     <option value="true">Sim</option><option value="false">Não</option>
                   </select>
                 </td>
-                <td className="td"><input type="number" step="0.01" className="inp w-20" value={r.mva} onChange={(e) => set(i, { mva: +e.target.value })} /></td>
-                <td className="td"><input type="number" step="0.01" className="inp w-24" value={r.aliqInterna} onChange={(e) => set(i, { aliqInterna: +e.target.value })} /></td>
+                <td className="td"><input type="number" step="0.01" className="inp w-20" placeholder="ex.: 45" value={r.mva || ""} onChange={(e) => set(i, { mva: +e.target.value })} /></td>
+                <td className="td"><input type="number" step="0.01" className="inp w-24" placeholder="ex.: 19.5" value={r.aliqInterna || ""} onChange={(e) => set(i, { aliqInterna: +e.target.value })} /></td>
                 <td className="td">
                   <button onClick={() => setRegras(regras.filter((_, j) => j !== i))} className="btn-ghost text-xs">remover</button>
                 </td>
