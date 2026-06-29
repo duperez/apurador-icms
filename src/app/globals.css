@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Classes utilitárias usadas na UI */
+@layer components {
+  .btn {
+    @apply rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800;
+  }
+  .btn-ghost {
+    @apply rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100;
+  }
+  .th {
+    @apply px-3 py-2.5 font-semibold;
+  }
+  .td {
+    @apply px-3 py-2 align-middle;
+  }
+  .inp {
+    @apply rounded-md border border-transparent bg-transparent px-1.5 py-1 focus:border-teal-600 focus:bg-white focus:outline-none;
+  }
+}
