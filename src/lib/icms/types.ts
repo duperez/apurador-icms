@@ -18,6 +18,8 @@ export interface ItemNota {
   produto: string;
   vProd: number;
   vFrete: number;
+  vSeg: number;
+  vOutro: number;
   vDesc: number;
   vIPI: number;
   cst: string;

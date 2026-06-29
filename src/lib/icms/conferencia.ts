@@ -42,7 +42,7 @@ export interface ConferenciaST {
 
 /** Confere um item que veio com ST retida na origem. */
 export function conferirItem(it: ItemNota, regra: RegraST | undefined): ConferenciaST {
-  const base = round2(it.vProd + it.vIPI + it.vFrete - it.vDesc);
+  const base = round2(it.vProd + it.vIPI + it.vFrete + it.vSeg + it.vOutro - it.vDesc);
   // os campos pMVAST/pICMSST/vBCST não estão em ItemNota; vêm do recálculo possível.
   // Reconstruímos a partir do que temos: vICMSST, vICMS e a alíquota/MVA destacados.
   const mvaForn = it.pMVAST;

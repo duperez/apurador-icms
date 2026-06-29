@@ -48,7 +48,7 @@ export function apurarItem(
   regras: Map<string, RegraST>,
   fins: Map<string, Finalidade>
 ): Apuracao {
-  const base = round2(it.vProd + it.vIPI + it.vFrete - it.vDesc);
+  const base = round2(it.vProd + it.vIPI + it.vFrete + it.vSeg + it.vOutro - it.vDesc);
   const aliqInter = it.pICMS;
   const out: Apuracao = {
     ...it,
@@ -62,7 +62,7 @@ export function apurarItem(
 
   const passoBase: Passo = {
     rotulo: "Base da operação",
-    detalhe: `vProd ${it.vProd.toFixed(2)} + IPI ${it.vIPI.toFixed(2)} + frete ${it.vFrete.toFixed(2)} − desc ${it.vDesc.toFixed(2)}`,
+    detalhe: `vProd ${it.vProd.toFixed(2)} + IPI ${it.vIPI.toFixed(2)} + frete ${it.vFrete.toFixed(2)} + seg ${it.vSeg.toFixed(2)} + outras ${it.vOutro.toFixed(2)} − desc ${it.vDesc.toFixed(2)}`,
     valor: base,
   };
 

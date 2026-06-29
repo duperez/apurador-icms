@@ -87,6 +87,8 @@ export function parseNFe(xmlText: string, arquivo = ""): ItemNota[] {
       produto: str(prod.xProd),
       vProd: num(prod.vProd),
       vFrete: num(prod.vFrete),
+      vSeg: num(prod.vSeg),
+      vOutro: num(prod.vOutro),
       vDesc: num(prod.vDesc),
       vIPI: ipiValor(imposto),
       cst: str(icms.CST) || str(icms.CSOSN),

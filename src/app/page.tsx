@@ -532,6 +532,10 @@ function EditorRegras({
       <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
         <b>Cache 1 — regra fiscal por NCM.</b> Para cada NCM/UF de destino: é ST? qual o MVA e a
         alíquota interna? Fonte: ECONET. Fica salvo no navegador.
+        <span className="mt-1 block text-xs">
+          Informe a <b>MVA original</b> (a do protocolo/convênio) — o sistema calcula a <b>MVA
+          ajustada</b> automaticamente pela alíquota interestadual de cada nota.
+        </span>
       </div>
       <div className="mb-3 flex items-center justify-between">
         <strong>Regras cadastradas</strong>
