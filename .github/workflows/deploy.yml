@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - uses: actions/configure-pages@v5
       - run: npm ci
       - name: Build (export estático)
         run: npm run build
